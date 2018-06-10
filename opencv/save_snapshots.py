@@ -22,9 +22,11 @@ import os
 
 __author__ = "Tiziano Fiorenzani"
 __date__ = "01/06/2018"
+__credits__="Manish Shrestha"
+__contribution_date__="06/10/2018"
 
 
-def save_snaps(width=0, height=0, name="snapshot", folder=".", raspi=False):
+def save_snaps(width=0, height=0, name="snapshot", folder=".", raspi=False, show_crosshair=False):
 
     if raspi:
         os.system('sudo modprobe bcm2835-v4l2')
@@ -50,9 +52,22 @@ def save_snaps(width=0, height=0, name="snapshot", folder=".", raspi=False):
     w       = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
     h       = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
+    if h < w:
+        sdim = h #smallest dimension
+    else:
+        sdim = w
+
     fileName    = "%s/%s_%d_%d_" %(folder, name, w, h)
     while True:
         ret, frame = cap.read()
+
+        #draw cross at center, diagonals
+        if show_crosshair == True:
+            cv2.line(frame,(int(w*0.45),int(h/2)),(int(w*0.55),int(h/2)),(255,0,0),1)
+            cv2.line(frame,(int(w/2),int(h*0.45)),(int(w/2),int(h*0.55)),(255,0,0),1)
+            cv2.line(frame,(int(w/2 - sdim/2),int(h/2-sdim/2)),(int(w/2+sdim/2),int(h/2+sdim/2)),(0,255,0),1)
+            cv2.line(frame,(int(w/2 - sdim/2),int(h/2+sdim/2)),(int(w/2+sdim/2),int(h/2-sdim/2)),(0,255,0),1)
+
 
         cv2.imshow('camera', frame)
 
@@ -85,6 +100,7 @@ def main():
     parser.add_argument("--dwidth", default=FRAME_WIDTH, type=int, help="<width> px (default the camera output)")
     parser.add_argument("--dheight", default=FRAME_HEIGHT, type=int, help="<height> px (default the camera output)")
     parser.add_argument("--raspi", default=False, type=bool, help="<bool> True if using a raspberry Pi")
+    parser.add_argument("--cross", default=False, type=bool, help="<bool> True if cross hair is to be displayed at center")
     args = parser.parse_args()
 
     SAVE_FOLDER = args.folder
@@ -93,7 +109,7 @@ def main():
     FRAME_HEIGHT = args.dheight
 
 
-    save_snaps(width=args.dwidth, height=args.dheight, name=args.name, folder=args.folder, raspi=args.raspi)
+    save_snaps(width=args.dwidth, height=args.dheight, name=args.name, folder=args.folder, raspi=args.raspi, show_crosshair=args.cross)
 
     print "Files saved"
 
