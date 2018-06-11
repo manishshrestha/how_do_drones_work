@@ -6,12 +6,19 @@ Arguments:
     --n <file name>         default: snapshot
     --w <width px>          default: none
     --h <height px>         default: none
+    --cross <True/False>    display + adn x cross hair at centre of the image taken
+    --addpose <True/False>  roll pitch and yaw angles are placed in captured filename. Assumption: pixhawk connected to USB of raspberryPi3. Example 
+                            filename would be like:  pose_test_640_480_p0.025_r0.003_y-1.864_a6.570_22
+
 
 Buttons:
     q           - quit
     space bar   - save the snapshot
     
-  
+Sample command:
+    python ./save_snapshots.py --folder test_rpy --name rpytest --dwidth 640 --dheight 480 --raspi True --cross True --addpose True
+    python ./save_snapshots.py --folder at_home2 --name pose_test --dwidth 640 --dheight 480 --raspi True --cross True --addpose True
+
 """
 
 import cv2
@@ -26,10 +33,21 @@ __credits__="Manish Shrestha"
 __contribution_date__="06/10/2018"
 
 
-def save_snaps(width=0, height=0, name="snapshot", folder=".", raspi=False, show_crosshair=False):
+def save_snaps(width=0, height=0, name="snapshot", folder=".", raspi=False, show_crosshair=False, add_pose=False):
 
     if raspi:
         os.system('sudo modprobe bcm2835-v4l2')
+        if add_pose==True:
+            from dronekit import connect, VehicleMode
+            connection_string ="/dev/ttyACM0" #raspberry USB to Pixhawk
+            print("Connecting to vehicle on: %s" % (connection_string,))
+            try:
+                vehicle = connect(connection_string, wait_ready=True)
+                print("Connected to vehicle on: %s" % (connection_string,))
+            except Exception, e:
+                print ("Error while connecting to the vechile: Error=%r", e)
+
+
 
     cap = cv2.VideoCapture(0)
     if width > 0 and height > 0:
@@ -61,6 +79,10 @@ def save_snaps(width=0, height=0, name="snapshot", folder=".", raspi=False, show
     while True:
         ret, frame = cap.read()
 
+        if add_pose and raspi:
+            att = vehicle.attitude
+            alt = vehicle.location.global_relative_frame.alt
+
         #draw cross at center, diagonals
         if show_crosshair == True:
             cv2.line(frame,(int(w*0.45),int(h/2)),(int(w*0.55),int(h/2)),(255,0,0),1)
@@ -76,7 +98,7 @@ def save_snaps(width=0, height=0, name="snapshot", folder=".", raspi=False, show
             break
         if key == ord(' '):
             print "Saving image ", nSnap
-            cv2.imwrite("%s%d.jpg"%(fileName, nSnap), frame)
+            cv2.imwrite("%sp%0.3f_r%0.3f_y%0.3f_a%0.3f_%d.jpg"%(fileName, att.pitch, att.roll, att.yaw, alt, nSnap), frame)
             nSnap += 1
 
     cap.release()
@@ -101,6 +123,7 @@ def main():
     parser.add_argument("--dheight", default=FRAME_HEIGHT, type=int, help="<height> px (default the camera output)")
     parser.add_argument("--raspi", default=False, type=bool, help="<bool> True if using a raspberry Pi")
     parser.add_argument("--cross", default=False, type=bool, help="<bool> True if cross hair is to be displayed at center")
+    parser.add_argument("--addpose", default=False, type=bool, help="<bool> True if roll pitch and yaw angles are to be captured")
     args = parser.parse_args()
 
     SAVE_FOLDER = args.folder
@@ -109,7 +132,7 @@ def main():
     FRAME_HEIGHT = args.dheight
 
 
-    save_snaps(width=args.dwidth, height=args.dheight, name=args.name, folder=args.folder, raspi=args.raspi, show_crosshair=args.cross)
+    save_snaps(width=args.dwidth, height=args.dheight, name=args.name, folder=args.folder, raspi=args.raspi, show_crosshair=args.cross, add_pose=args.addpose)
 
     print "Files saved"
 
